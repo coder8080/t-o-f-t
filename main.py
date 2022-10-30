@@ -11,45 +11,57 @@ import csv
 from docx import Document
 from docx.shared import Inches
 
+# Глобальные константы
 DATABASE_FILENAME = './database.sqlite3'
 LOADING_ERROR = (sqlite3.OperationalError, IndexError)
 FILE_GENERATED = 'Файл сгенерирован'
 LOADING_ERROR_MESSAGE = 'Ошибка при загрузке данных'
 UNKNOWN_ERROR_MESSAGE = 'Ошибка'
 
+# Вспомогательные функции
 
-def get_filename_by_id(id):
+
+def get_filename_by_id(id: str):
+    """ Возвращает имя файла по id """
     return f'./images/{id}.png'
 
 
-def handle_loading_error(instance, error):
+def handle_loading_error(instance: QMainWindow, error: Exception):
+    """ Выводит сообщение об ошибке загрузки """
     print(error)
     QMessageBox.critical(instance, 'Ошибка', 'Не удалось загрузить данные')
 
 
 def handle_unknown_error(instance, error):
+    """ Выводит сообщение о неизвестной ошибке """
     print(error)
     QMessageBox.critical(instance, 'Неизвестная ошибка',
                          'Произошла неизвестная ошибка')
 
 
 def create_database():
+    """ С нуля создаёт базу данных """
     file = open(DATABASE_FILENAME, mode='wb')
     file.close()
     del file
     con = sqlite3.connect('database.sqlite3')
     cur = con.cursor()
+    # Создать таблицу цветов
     cur.execute(
         'CREATE TABLE colors (id INTEGER PRIMARY KEY AUTOINCREMENT, name text);').fetchall()
+    # Создать таблицу вещей
     cur.execute('CREATE TABLE things (id INTEGER PRIMARY KEY AUTOINCREMENT, name text,'
                 ' color_id integer, filename_id text)').fetchall()
+    # Добавить базовые цвета
     cur.execute('INSERT INTO colors (name) VALUES ("красный"),'
                 ' ("синий"), ("зелёный"), ("белый"), ("чёрный")').fetchall()
+    # Сохраненить изменения
     con.commit()
     con.close()
 
 
 def distance(a, b):
+    """ Алгоритм левенштейна """
     n, m = len(a), len(b)
     if n > m:
         a, b = b, a
@@ -68,10 +80,13 @@ def distance(a, b):
 
 
 def save_image(filename, id):
+    """ Скопировать и сконвертировать изображение """
+    # Создать папку если не существует
     if not os.path.exists('./images'):
         os.mkdir('./images')
     im = Image.open(filename)
     im2 = None
+    # Задать новый размер изображению
     x, y = im.size
     nx, ny = 700, 450
     nratio = nx / ny
@@ -84,11 +99,33 @@ def save_image(filename, id):
         yratio = ny / y
         width = int(yratio * x)
         im2 = im.resize((width, ny))
+    # Скопировать изображения с изменениями
     copy_filename = get_filename_by_id(id)
     im2.save(copy_filename)
 
 
+def print_document(self, filename, name, thing, color, image_filename):
+    """ Создать документ о выписке потерянной вещи """
+    date = str(datetime.now().date())
+    document = Document()
+    document.add_heading('Документ о возвращении потерянной вещи', 0)
+    # Внести данные
+    p = document.add_paragraph('Дата: ')
+    p.add_run(date).bold = True
+    p = document.add_paragraph('Имя получателя: ')
+    p.add_run(name).italic = True
+    p = document.add_paragraph('Предмет: ')
+    p.add_run(f'"{thing}"').bold = True
+    p = document.add_paragraph('Указанный цвет: ')
+    p.add_run(color).bold = True
+    document.add_picture(image_filename, width=Inches(5))
+    # Сохранить
+    document.save(filename)
+
+
 class Logger:
+    """ Инструмент сохранения записей о событиях """
+
     def __init__(self, filename):
         self.filename = filename
         self.file = open(filename, 'w', newline='', encoding="utf8")
@@ -105,28 +142,12 @@ class Logger:
         self.file.close()
 
 
-class Printer:
-    def print_document(self, filename, name, thing, color, image_filename):
-        date = str(datetime.now().date())
-        document = Document()
-        document.add_heading('Документ о возвращении потерянной вещи', 0)
-        p = document.add_paragraph('Дата: ')
-        p.add_run(date).bold = True
-        p = document.add_paragraph('Имя получателя: ')
-        p.add_run(name).italic = True
-        p = document.add_paragraph('Предмет: ')
-        p.add_run(f'"{thing}"').bold = True
-        p = document.add_paragraph('Указанный цвет: ')
-        p.add_run(color).bold = True
-        document.add_picture(image_filename, width=Inches(5))
-        document.save(filename)
-
-
 logger = Logger('TOFT.log.csv')
-printer = Printer()
 
 
 class FilesWindow(QMainWindow):
+    """ Окно вывода в файлы """
+
     def __init__(self, cur, con):
         super().__init__()
         self.cur = cur
@@ -143,6 +164,7 @@ class FilesWindow(QMainWindow):
         self.docx_button.clicked.connect(self.save_docx)
 
     def get_filename(self, resolution):
+        """ Получить имя файла в корректный форме """
         filename = QFileDialog.getSaveFileName(
             self, 'Получившийся файл', filter=f'{resolution}(*.{resolution})')[0]
         if not filename:
@@ -155,12 +177,15 @@ class FilesWindow(QMainWindow):
         return filename
 
     def fetch_items(self):
+        """ Получить записи из базы данных """
         result = []
+        # Получить имёна цветов
         db_colors = self.cur.execute(
             'SELECT id, name FROM colors').fetchall()
         colornames = {el[0]: el[1] for el in db_colors}
         data = self.cur.execute(
             'SELECT name, color_id, filename_id FROM things').fetchall()
+        # Получить записи
         for name, color_id, filename_id in data:
             color_name = colornames[color_id]
             filename = get_filename_by_id(filename_id)
@@ -169,6 +194,7 @@ class FilesWindow(QMainWindow):
         return result
 
     def save_csv(self):
+        """ Экспортировать в формат csv """
         filename = self.get_filename('csv')
         if not filename:
             return
@@ -191,6 +217,7 @@ class FilesWindow(QMainWindow):
             file.close()
 
     def save_docx(self):
+        """ Экспорт в формат docx """
         filename = self.get_filename('docx')
         document = Document()
         document.add_heading('Потерянные вещи', 0)
@@ -216,6 +243,8 @@ class FilesWindow(QMainWindow):
 
 
 class ItemWindow(QMainWindow):
+    """ Окно с подробной информацией о предмете """
+
     def __init__(self, cur, con, close_search):
         super().__init__()
         self.cur = cur
@@ -232,6 +261,7 @@ class ItemWindow(QMainWindow):
         self.take_button.clicked.connect(self.take)
 
     def fetchData(self, id):
+        """ Обновить данные """
         try:
             self.data = dict()
             result = self.cur.execute(
@@ -251,6 +281,7 @@ class ItemWindow(QMainWindow):
             self.close()
 
     def updateUi(self):
+        """ Обновить интерфейс """
         self.name_label.setText(self.data['name'])
         self.color_label.setText(self.data['color_name'])
         self.filename = get_filename_by_id(self.data['filename_id'])
@@ -258,6 +289,7 @@ class ItemWindow(QMainWindow):
         self.image_label.setPixmap(pixmap)
 
     def take(self):
+        """Оформить возврат """
         name = QInputDialog.getText(
             self, 'Данные', 'Введите ваше имя')[0].strip().strip('\n')
         if not name:
@@ -265,13 +297,18 @@ class ItemWindow(QMainWindow):
                 self, 'Ошибка', 'Ваши персональные данные необходимы для оформления')
             return
         try:
+            # Удалить запись
             self.cur.execute(f'DELETE FROM things WHERE id = {self.id}')
             self.con.commit()
+            # Создать запись в логе
             logger.log(name, self.data['name'],
                        self.data['color_name'],)
-            printer.print_document(
+            # Напечатать документ о возврате
+            print_document(
                 'doc.docx', name, self.data['name'], self.data['color_name'],  self.filename)
+            # Удалить ненужный файл
             os.remove(self.filename)
+            # Уведомить пользователя об успехе
             QMessageBox.information(self, 'Уведомление', 'Документ сохранён в'
                                     ' файл doc.docx. Обратитесь с ним в комнату'
                                     ' забытых вещей.')
@@ -286,6 +323,8 @@ class ItemWindow(QMainWindow):
 
 
 class SearchWindow(QMainWindow):
+    """ Окно поиска по забытым вещам """
+
     def __init__(self, cur, con):
         super().__init__()
         self.cur = cur
@@ -334,6 +373,7 @@ class SearchWindow(QMainWindow):
         return result
 
     def update_colors(self):
+        """ Обновить список цветов """
         self.reset_colors()
         queryColors = self.cur.execute(
             'SELECT * FROM colors').fetchall()
@@ -344,10 +384,12 @@ class SearchWindow(QMainWindow):
         self.color_box.addItems(self.colors)
 
     def search(self):
+        """ Выполнить поиск """
         name = self.name_edit.text()
         color = self.color_box.currentText()
         if color == 'Любой':
             color = None
+        # Формирование запроса
         query = 'SELECT  name, color_id, id FROM things'
         if name or color:
             query += ' WHERE'
@@ -359,7 +401,8 @@ class SearchWindow(QMainWindow):
                 color_id = self.db_colors_ids[color]
                 query += f' color_id = {color_id}'
         query += ';'
-        result = self.cur.execute(query).fetchall()
+        result = self.cur.execute(query).fetchall
+        # Отображение данных в таблице
         self.table.setRowCount(len(result))
         for i, row in enumerate(result):
             self.table.setItem(i, 0, QTableWidgetItem(row[0]))
@@ -375,6 +418,8 @@ class SearchWindow(QMainWindow):
 
 
 class AddWindow(QMainWindow):
+    """ Окно занесения нового предмета в базу """
+
     def __init__(self, cur, con):
         super().__init__()
         self.cur = cur
@@ -392,6 +437,7 @@ class AddWindow(QMainWindow):
         self.submit_button.clicked.connect(self.submit)
 
     def reset(self):
+        """ Сброс интерфейса """
         self.filename = 'Файл не выбран'
         self.update_filename()
         self.filename = None
@@ -400,6 +446,7 @@ class AddWindow(QMainWindow):
         self.reset()
 
     def add_color(self):
+        """ Процесс добавления нового цвета """
         colorname = QInputDialog.getText(
             self, "Добавление цвета", "Название цвета")[0].lower()
         if not colorname:
@@ -420,6 +467,7 @@ class AddWindow(QMainWindow):
             self.color_box.setCurrentIndex(self.colors.index(colorname))
 
     def update_colors(self):
+        """ Обновить список цветов в dropdown (combo box) """
         self.color_box.clear()
         dbColors = self.cur.execute(f'SELECT name FROM colors').fetchall()
         self.colors = [el[0] for el in dbColors]
@@ -429,6 +477,7 @@ class AddWindow(QMainWindow):
         self.image_path.setText(self.filename)
 
     def open_image(self):
+        """ Выбрать путь до файла с изображением """
         filename = QFileDialog.getOpenFileName(
             self, 'Выберите файл с изображением', '',
             'Image Files(*.jpg, *.jpeg, *.png, *.bpm, *.webp)')[0]
@@ -440,9 +489,11 @@ class AddWindow(QMainWindow):
         self.update_filename()
 
     def submit(self):
+        """ Создать запись """
         name = self.name_edit.text().lower()
         filename = self.filename
         color = self.color_box.currentText()
+        # Валидация полей
         if not name:
             QMessageBox.critical(
                 self, 'Ошибка', 'Укажите название')
@@ -455,12 +506,14 @@ class AddWindow(QMainWindow):
             QMessageBox.critical(self, 'Ошибка', 'Укажите цвет')
             return
         try:
+            # Если запись с таким названием уже существует, то не создавать заново
             exists = self.cur.execute(
                 f'SELECT id FROM things WHERE name = "{name}";').fetchall()
             if exists:
                 QMessageBox.warning(
                     self, 'Не удалось добавить', 'Запись с таким названием уже существует',)
                 return
+            # Создание записи
             id = uuid0.generate()
             color_id = self.cur.execute(
                 f'SELECT Id FROM colors WHERE name = "{color}"').fetchall()[0][0]
@@ -481,9 +534,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         uic.loadUi('./windows/main.ui', self)
         self.setupDb()
-        self.setupUi()
+        self.initUi()
 
-    def setupUi(self):
+    def initUi(self):
         self.search_window = SearchWindow(self.cur, self.con)
         self.add_window = AddWindow(self.cur, self.con)
         self.files_window = FilesWindow(self.cur, self.con)
@@ -493,6 +546,7 @@ class MainWindow(QMainWindow):
         self.file_button.clicked.connect(self.open_files_window)
 
     def setupDb(self):
+        """ Установить соединение с базой данных """
         if not os.path.exists(DATABASE_FILENAME):
             create_database()
         self.con = sqlite3.connect(DATABASE_FILENAME)
