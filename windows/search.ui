@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>792</width>
-    <height>682</height>
+    <height>671</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
       <x>30</x>
       <y>20</y>
       <width>501</width>
-      <height>101</height>
+      <height>91</height>
      </rect>
     </property>
     <layout class="QFormLayout" name="formLayout">
@@ -52,27 +52,40 @@
      </item>
     </layout>
    </widget>
-   <widget class="QTableView" name="result_table">
+   <widget class="QWidget" name="verticalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>30</x>
-      <y>130</y>
-      <width>731</width>
-      <height>511</height>
+      <x>580</x>
+      <y>20</y>
+      <width>160</width>
+      <height>92</height>
      </rect>
     </property>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QPushButton" name="search_button">
+       <property name="text">
+        <string>Поиск</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="cancel_button">
+       <property name="text">
+        <string>Отмена</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </widget>
-   <widget class="QPushButton" name="cancel_button">
+   <widget class="QTableWidget" name="table">
     <property name="geometry">
      <rect>
-      <x>600</x>
-      <y>40</y>
-      <width>124</width>
-      <height>42</height>
+      <x>20</x>
+      <y>120</y>
+      <width>751</width>
+      <height>501</height>
      </rect>
-    </property>
-    <property name="text">
-     <string>Отмена</string>
     </property>
    </widget>
   </widget>
