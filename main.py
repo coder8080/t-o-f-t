@@ -1,3 +1,4 @@
+from hashlib import new
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QTableWidgetItem, QPushButton
 from PyQt5.QtGui import QPixmap
 from PyQt5 import uic
@@ -12,6 +13,11 @@ from docx import Document
 from docx.shared import Inches
 
 DATABASE_FILENAME = './database.sqlite3'
+LOADING_ERROR = (sqlite3.OperationalError, IndexError)
+
+
+def get_filename_by_id(id):
+    return f'./images/{id}.png'
 
 
 def handle_loading_error(instance, error):
@@ -76,7 +82,7 @@ def save_image(filename, id):
         yratio = ny / y
         width = int(yratio * x)
         im2 = im.resize((width, ny))
-    copy_filename = f'./images/{id}.png'
+    copy_filename = get_filename_by_id(id)
     im2.save(copy_filename)
 
 
@@ -118,6 +124,62 @@ logger = Logger('TOFT.log.csv')
 printer = Printer()
 
 
+class FilesWindow(QMainWindow):
+    def __init__(self, cur, con):
+        super().__init__()
+        self.cur = cur
+        self.con = con
+        self.initUi()
+
+    def update_statusbar(self, message):
+        self.statusbar.showMessage(message)
+
+    def initUi(self):
+        uic.loadUi('./windows/files.ui', self)
+        self.update_statusbar('Ожидание выбора')
+        self.csv_button.clicked.connect(self.save_csv)
+        self.docx_button.clicked.connect(self.save_docx)
+
+    def save_csv(self):
+        filename = QFileDialog.getSaveFileName(
+            self, 'Получившийся файл', filter='CSV(*.csv)')[0]
+        splitted = filename.split('.')
+        if splitted[-1] != 'csv':
+            if filename[-1] != '.':
+                filename += '.'
+            filename += 'csv'
+        file = open(filename, mode='wt', encoding='utf-8', newline='')
+        writer = csv.DictWriter(file, fieldnames=(
+            'название', 'цвет', 'изображение'), delimiter=';', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+        writer.writeheader()
+        try:
+            db_colors = self.cur.execute(
+                'SELECT id, name FROM colors').fetchall()
+            colornames = {el[0]: el[1] for el in db_colors}
+            data = self.cur.execute(
+                'SELECT name, color_id, filename_id FROM things').fetchall()
+            for name, color_id, filename_id in data:
+                color_name = colornames[color_id]
+                filename = get_filename_by_id(filename_id)
+                writer.writerow(
+                    {'название': name, 'цвет': color_name, 'изображение': filename})
+            self.update_statusbar('Файл сгенерирован')
+        except LOADING_ERROR as error:
+            handle_loading_error(self, error)
+            self.update_statusbar('Ошибка')
+        except Exception as error:
+            handle_unknown_error(self, error)
+            self.update_statusbar('Ошибка')
+        finally:
+            file.close()
+
+    def save_docx(self):
+        pass
+
+    def closeEvent(self, event) -> None:
+        self.update_statusbar('Ожидание выбора')
+
+
 class ItemWindow(QMainWindow):
     def __init__(self, cur, con, close_search):
         super().__init__()
@@ -146,7 +208,7 @@ class ItemWindow(QMainWindow):
                 f'SELECT name FROM colors WHERE id = {self.data["color_id"]}').fetchall()[0][0]
             self.id = id
             self.updateUi()
-        except (sqlite3.OperationalError, IndexError) as error:
+        except LOADING_ERROR as error:
             handle_loading_error(self, error)
             self.close()
         except Exception as error:
@@ -156,7 +218,7 @@ class ItemWindow(QMainWindow):
     def updateUi(self):
         self.name_label.setText(self.data['name'])
         self.color_label.setText(self.data['color_name'])
-        self.filename = f'./images/{self.data["filename_id"]}.png'
+        self.filename = get_filename_by_id(self.data['filename_id'])
         pixmap = QPixmap(self.filename)
         self.image_label.setPixmap(pixmap)
 
@@ -180,7 +242,7 @@ class ItemWindow(QMainWindow):
                                     ' забытых вещей.')
             self.close_search()
             self.close()
-        except (sqlite3.OperationalError, IndexError) as error:
+        except LOADING_ERROR as error:
             handle_loading_error(self, error)
             return
         except Exception as error:
@@ -373,7 +435,7 @@ class AddWindow(QMainWindow):
             save_image(filename, id)
             QMessageBox.information(self, 'Уведомление', 'Запись добавлена')
             self.close()
-        except (IndexError, sqlite3.OperationalError) as error:
+        except LOADING_ERROR as error:
             handle_loading_error(self, error)
         except Exception as error:
             handle_unknown_error(self, error)
@@ -389,8 +451,11 @@ class MainWindow(QMainWindow):
     def setupUi(self):
         self.search_window = SearchWindow(self.cur, self.con)
         self.add_window = AddWindow(self.cur, self.con)
+        self.files_window = FilesWindow(self.cur, self.con)
+
         self.search_button.clicked.connect(self.open_search_window)
         self.add_button.clicked.connect(self.open_add_window)
+        self.file_button.clicked.connect(self.open_files_window)
 
     def setupDb(self):
         if not os.path.exists(DATABASE_FILENAME):
@@ -405,6 +470,9 @@ class MainWindow(QMainWindow):
 
     def open_add_window(self):
         self.add_window.show()
+
+    def open_files_window(self):
+        self.files_window.show()
 
     def closeEvent(self, event):
         logger.close()
