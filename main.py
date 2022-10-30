@@ -1,5 +1,6 @@
-from email.charset import QP
+from turtle import color
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QTableWidgetItem, QPushButton
+from PyQt5.QtGui import QPixmap
 from PyQt5 import uic
 from sys import argv, exit
 from PIL import Image
@@ -8,6 +9,17 @@ import sqlite3
 import uuid0
 
 DATABASE_FILENAME = './database.sqlite3'
+
+
+def handle_loading_error(instance, error):
+    print(error)
+    QMessageBox.critical(instance, 'Ошибка', 'Не удалось загрузить данные')
+
+
+def handle_unknown_error(instance, error):
+    print(error)
+    QMessageBox.critical(instance, 'Неизвестная ошибка',
+                         'Произошла неизвестная ошибка')
 
 
 def create_database():
@@ -48,8 +60,68 @@ def save_image(filename, id):
     if not os.path.exists('./images'):
         os.mkdir('./images')
     im = Image.open(filename)
+    im2 = None
+    x, y = im.size
+    nx, ny = 700, 450
+    nratio = nx / ny
+    ratio = x / y
+    if ratio > nratio:
+        xratio = nx / x
+        height = int(xratio * y)
+        im2 = im.resize((nx, height))
+    elif ratio < nratio:
+        yratio = ny / y
+        width = int(yratio * x)
+        im2 = im.resize((width, ny))
     copy_filename = f'./images/{id}.png'
-    im.save(copy_filename)
+    im2.save(copy_filename)
+
+
+class ItemWindow(QMainWindow):
+    def __init__(self, cur, con):
+        super().__init__()
+        self.cur = cur
+        self.con = con
+        self.id = 0
+        self.initUi()
+
+    def initUi(self):
+        uic.loadUi('./windows/item.ui', self)
+        self.cancel_button.clicked.connect(self.close)
+
+    def fetchData(self, id):
+        try:
+            result = self.cur.execute(
+                f'SELECT name, filename_id, color_id FROM things WHERE id={id}').fetchall()[0]
+            self.data = result
+            self.id = id
+            self.updateUi()
+        except (sqlite3.OperationalError, IndexError) as error:
+            handle_loading_error(self, error)
+            self.close()
+        except Exception as error:
+            handle_unknown_error(self, error)
+            self.close()
+
+    def updateUi(self):
+        name, filename_id, color_id = self.data
+        color_name = None
+        try:
+            color_name = self.cur.execute(
+                f'SELECT name FROM colors WHERE id = {color_id}').fetchall()[0][0]
+        except (IndexError, sqlite3.sqlite3.OperationalError) as error:
+            handle_loading_error(self, error)
+            self.close()
+            return
+        except Exception as error:
+            handle_unknown_error(self, error)
+            self.close()
+            return
+        self.name_label.setText(name)
+        self.color_label.setText(color_name)
+        filename = f'./images/{filename_id}'
+        pixmap = QPixmap(filename)
+        self.image_label.setPixmap(pixmap)
 
 
 class SearchWindow(QMainWindow):
@@ -60,6 +132,7 @@ class SearchWindow(QMainWindow):
         self.colors = []
         self.db_colors_ids = dict()
         self.db_colors_names = dict()
+        self.item_window = ItemWindow(self.cur, self.con)
         self.initUi()
         self.update_colors()
 
@@ -93,6 +166,12 @@ class SearchWindow(QMainWindow):
         self.reset_color_value()
         self.reset_statusbar()
 
+    def onclick_fabric(self, id):
+        def result():
+            self.item_window.fetchData(id)
+            self.item_window.show()
+        return result
+
     def update_colors(self):
         self.reset_colors()
         queryColors = self.cur.execute(
@@ -108,7 +187,7 @@ class SearchWindow(QMainWindow):
         color = self.color_box.currentText()
         if color == 'Любой':
             color = None
-        query = 'SELECT  name, color_id FROM things'
+        query = 'SELECT  name, color_id, id FROM things'
         if name or color:
             query += ' WHERE'
             if name:
@@ -125,8 +204,9 @@ class SearchWindow(QMainWindow):
             self.table.setItem(i, 0, QTableWidgetItem(row[0]))
             self.table.setItem(i, 1, QTableWidgetItem(
                 self.db_colors_names[row[1]]))
-            self.table.setCellWidget(i, 2,
-                                     QPushButton('Открыть', self))
+            button = QPushButton('Открыть', self)
+            button.clicked.connect(self.onclick_fabric(row[2]))
+            self.table.setCellWidget(i, 2, button)
         if len(result) > 0:
             self.statusbar.showMessage('Успешно')
         else:
@@ -230,13 +310,9 @@ class AddWindow(QMainWindow):
             QMessageBox.information(self, 'Уведомление', 'Запись добавлена')
             self.close()
         except (IndexError, sqlite3.OperationalError) as error:
-            print(error)
-            QMessageBox.critical(self, 'Произошла ошибка при обращении к базе данных.'
-                                 ' Проверьте целостность файла и перезапустите приложение')
+            handle_loading_error(self, error)
         except Exception as error:
-            print(error)
-            QMessageBox.critical(self, 'Произошла неизвестная ошибка. Попробуйте'
-                                 ' перезапустить приложение')
+            handle_unknown_error(self, error)
 
 
 class MainWindow(QMainWindow):
