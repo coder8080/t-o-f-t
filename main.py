@@ -27,18 +27,21 @@ class AddWindow(QMainWindow):
         self.cur = cur
         self.con = con
         self.colors = []
+        self.filename = ''
         self.initUi()
         self.update_colors()
 
     def initUi(self):
         uic.loadUi('./windows/add.ui', self)
-        self.cancel_button.clicked.connect(self.reset_and_close)
+        self.cancel_button.clicked.connect(self.close)
         self.add_color_button.clicked.connect(self.add_color)
+        self.image_button.clicked.connect(self.open_image)
 
     def reset(self):
-        pass
+        self.filename = 'Файл не выбран'
+        self.update_filename()
 
-    def reset_and_close(self):
+    def closeEvent(self, e):
         self.reset()
         self.close()
 
@@ -67,6 +70,20 @@ class AddWindow(QMainWindow):
         dbColors = self.cur.execute(f'SELECT name FROM colors').fetchall()
         self.colors = [el[0] for el in dbColors]
         self.color_box.addItems(self.colors)
+
+    def update_filename(self):
+        self.image_path.setText(self.filename)
+
+    def open_image(self):
+        filename = QFileDialog.getOpenFileName(
+            self, 'Выберите файл с изображением', '',
+            'Image Files(*.jpg, *.jpeg, *.png, *.bpm, *.webp)')[0]
+        if not filename:
+            QMessageBox().warning(self, 'Ошибка', 'Файл не был выбран. Скорее'
+                                  ' всего, вы нажали "Cancel" вместо "Open"')
+            return
+        self.filename = filename
+        self.update_filename()
 
 
 class MainWindow(QMainWindow):
