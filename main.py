@@ -99,7 +99,7 @@ class AddWindow(QMainWindow):
         self.update_filename()
 
     def submit(self):
-        name = self.name_edit.text()
+        name = self.name_edit.text().lower()
         filename = self.filename
         color = self.color_box.currentText()
         if not name:
