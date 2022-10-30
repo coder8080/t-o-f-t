@@ -6,3 +6,18 @@
 
 - Python 3.10.7
 - PyQt5 5.15.7
+
+## Необходимые зависимости
+- Python ^ 3.8
+
+## Запуск
+
+Последовательность команд для запуска приложения:
+```bash
+pip install -r requirements.txt
+python ./create_empty_db.py
+python ./main.py
+```
+
+Если команду `python` не удаётся найти, попробуйте заменить её на `python3`
+и проверьте, что Python точно установлен.
