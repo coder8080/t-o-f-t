@@ -1,5 +1,3 @@
-from hashlib import new
-from turtle import width
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QTableWidgetItem, QPushButton
 from PyQt5.QtGui import QPixmap
 from PyQt5 import uic
