@@ -1,4 +1,3 @@
-from turtle import color
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QTableWidgetItem, QPushButton
 from PyQt5.QtGui import QPixmap
 from PyQt5 import uic
@@ -7,6 +6,10 @@ from PIL import Image
 import os
 import sqlite3
 import uuid0
+from datetime import datetime
+import csv
+from docx import Document
+from docx.shared import Inches
 
 DATABASE_FILENAME = './database.sqlite3'
 
@@ -77,23 +80,70 @@ def save_image(filename, id):
     im2.save(copy_filename)
 
 
+class Logger:
+    def __init__(self, filename):
+        self.filename = filename
+        self.file = open(filename, 'w', newline='', encoding="utf8")
+        self.writer = csv.DictWriter(
+            self.file, fieldnames=['время', 'имя', 'название', 'цвет'], delimiter=';', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+        self.writer.writeheader()
+
+    def log(self, name, thing, color):
+        now = str(datetime.now())
+        self.writer.writerow(
+            {'время': now, 'имя': name, 'название': thing, 'цвет': color})
+
+    def close(self):
+        self.file.close()
+
+
+class Printer:
+    def print_document(self, filename, name, thing, color, image_filename):
+        date = str(datetime.now().date())
+        document = Document()
+        document.add_heading('Документ о возвращении потерянной вещи', 0)
+        p = document.add_paragraph('Дата: ')
+        p.add_run(date).bold = True
+        p = document.add_paragraph('Имя получателя: ')
+        p.add_run(name).italic = True
+        p = document.add_paragraph('Предмет: ')
+        p.add_run(f'"{thing}"').bold = True
+        p = document.add_paragraph('Указанный цвет: ')
+        p.add_run(color).bold = True
+        document.add_picture(image_filename, width=Inches(5))
+        document.save(filename)
+
+
+logger = Logger('TOFT.log.csv')
+printer = Printer()
+
+
 class ItemWindow(QMainWindow):
-    def __init__(self, cur, con):
+    def __init__(self, cur, con, close_search):
         super().__init__()
         self.cur = cur
         self.con = con
         self.id = 0
+        self.data = dict()
+        self.filename = ''
+        self.close_search = close_search
         self.initUi()
 
     def initUi(self):
         uic.loadUi('./windows/item.ui', self)
         self.cancel_button.clicked.connect(self.close)
+        self.take_button.clicked.connect(self.take)
 
     def fetchData(self, id):
         try:
+            self.data = dict()
             result = self.cur.execute(
                 f'SELECT name, filename_id, color_id FROM things WHERE id={id}').fetchall()[0]
-            self.data = result
+            self.data['name'] = result[0]
+            self.data['filename_id'] = result[1]
+            self.data['color_id'] = result[2]
+            self.data['color_name'] = self.cur.execute(
+                f'SELECT name FROM colors WHERE id = {self.data["color_id"]}').fetchall()[0][0]
             self.id = id
             self.updateUi()
         except (sqlite3.OperationalError, IndexError) as error:
@@ -104,24 +154,38 @@ class ItemWindow(QMainWindow):
             self.close()
 
     def updateUi(self):
-        name, filename_id, color_id = self.data
-        color_name = None
+        self.name_label.setText(self.data['name'])
+        self.color_label.setText(self.data['color_name'])
+        self.filename = f'./images/{self.data["filename_id"]}.png'
+        pixmap = QPixmap(self.filename)
+        self.image_label.setPixmap(pixmap)
+
+    def take(self):
+        name = QInputDialog.getText(
+            self, 'Данные', 'Введите ваше имя')[0].strip().strip('\n')
+        if not name:
+            QMessageBox.critical(
+                self, 'Ошибка', 'Ваши персональные данные необходимы для оформления')
+            return
         try:
-            color_name = self.cur.execute(
-                f'SELECT name FROM colors WHERE id = {color_id}').fetchall()[0][0]
-        except (IndexError, sqlite3.sqlite3.OperationalError) as error:
-            handle_loading_error(self, error)
+            self.cur.execute(f'DELETE FROM things WHERE id = {self.id}')
+            self.con.commit()
+            logger.log(name, self.data['name'],
+                       self.data['color_name'],)
+            printer.print_document(
+                'doc.docx', name, self.data['name'], self.data['color_name'],  self.filename)
+            os.remove(self.filename)
+            QMessageBox.information(self, 'Уведомление', 'Документ сохранён в'
+                                    ' файл doc.docx. Обратитесь с ним в комнату'
+                                    ' забытых вещей.')
+            self.close_search()
             self.close()
+        except (sqlite3.OperationalError, IndexError) as error:
+            handle_loading_error(self, error)
             return
         except Exception as error:
             handle_unknown_error(self, error)
-            self.close()
             return
-        self.name_label.setText(name)
-        self.color_label.setText(color_name)
-        filename = f'./images/{filename_id}'
-        pixmap = QPixmap(filename)
-        self.image_label.setPixmap(pixmap)
 
 
 class SearchWindow(QMainWindow):
@@ -132,7 +196,7 @@ class SearchWindow(QMainWindow):
         self.colors = []
         self.db_colors_ids = dict()
         self.db_colors_names = dict()
-        self.item_window = ItemWindow(self.cur, self.con)
+        self.item_window = ItemWindow(self.cur, self.con, self.close)
         self.initUi()
         self.update_colors()
 
@@ -341,6 +405,9 @@ class MainWindow(QMainWindow):
 
     def open_add_window(self):
         self.add_window.show()
+
+    def closeEvent(self, event):
+        logger.close()
 
 
 if __name__ == '__main__':
