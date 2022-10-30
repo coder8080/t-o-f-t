@@ -1,4 +1,5 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QTableWidgetItem
+from email.charset import QP
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QTableWidgetItem, QPushButton
 from PyQt5 import uic
 from sys import argv, exit
 from PIL import Image
@@ -7,6 +8,22 @@ import sqlite3
 import uuid0
 
 DATABASE_FILENAME = './database.sqlite3'
+
+
+def create_database():
+    file = open(DATABASE_FILENAME, mode='wb')
+    file.close()
+    del file
+    con = sqlite3.connect('database.sqlite3')
+    cur = con.cursor()
+    cur.execute(
+        'CREATE TABLE colors (id INTEGER PRIMARY KEY AUTOINCREMENT, name text);').fetchall()
+    cur.execute('CREATE TABLE things (id INTEGER PRIMARY KEY AUTOINCREMENT, name text,'
+                ' color_id integer, filename_id text)').fetchall()
+    cur.execute('INSERT INTO colors (name) VALUES ("красный"),'
+                ' ("синий"), ("зелёный"), ("белый"), ("чёрный")').fetchall()
+    con.commit()
+    con.close()
 
 
 def distance(a, b):
@@ -54,8 +71,8 @@ class SearchWindow(QMainWindow):
         self.reset_statusbar()
 
     def init_table(self):
-        self.table.setColumnCount(2)
-        self.table.setHorizontalHeaderLabels(('Название', 'Цвет'))
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(('Название', 'Цвет', 'Просмотр'))
 
     def reset_name(self):
         self.name_edit.setText('')
@@ -108,6 +125,8 @@ class SearchWindow(QMainWindow):
             self.table.setItem(i, 0, QTableWidgetItem(row[0]))
             self.table.setItem(i, 1, QTableWidgetItem(
                 self.db_colors_names[row[1]]))
+            self.table.setCellWidget(i, 2,
+                                     QPushButton('Открыть', self))
         if len(result) > 0:
             self.statusbar.showMessage('Успешно')
         else:
@@ -234,11 +253,14 @@ class MainWindow(QMainWindow):
         self.add_button.clicked.connect(self.open_add_window)
 
     def setupDb(self):
+        if not os.path.exists(DATABASE_FILENAME):
+            create_database()
         self.con = sqlite3.connect(DATABASE_FILENAME)
         self.con.create_function('levenshtein', 2, distance)
         self.cur = self.con.cursor()
 
     def open_search_window(self):
+        self.search_window.update_colors()
         self.search_window.show()
 
     def open_add_window(self):
