@@ -1,4 +1,5 @@
 from hashlib import new
+from turtle import width
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QTableWidgetItem, QPushButton
 from PyQt5.QtGui import QPixmap
 from PyQt5 import uic
@@ -14,6 +15,9 @@ from docx.shared import Inches
 
 DATABASE_FILENAME = './database.sqlite3'
 LOADING_ERROR = (sqlite3.OperationalError, IndexError)
+FILE_GENERATED = 'Файл сгенерирован'
+LOADING_ERROR_MESSAGE = 'Ошибка при загрузке данных'
+UNKNOWN_ERROR_MESSAGE = 'Ошибка'
 
 
 def get_filename_by_id(id):
@@ -140,41 +144,74 @@ class FilesWindow(QMainWindow):
         self.csv_button.clicked.connect(self.save_csv)
         self.docx_button.clicked.connect(self.save_docx)
 
-    def save_csv(self):
+    def get_filename(self, resolution):
         filename = QFileDialog.getSaveFileName(
-            self, 'Получившийся файл', filter='CSV(*.csv)')[0]
+            self, 'Получившийся файл', filter=f'{resolution}(*.{resolution})')[0]
+        if not filename:
+            return
         splitted = filename.split('.')
-        if splitted[-1] != 'csv':
+        if splitted[-1] != resolution:
             if filename[-1] != '.':
                 filename += '.'
-            filename += 'csv'
+            filename += resolution
+        return filename
+
+    def fetch_items(self):
+        result = []
+        db_colors = self.cur.execute(
+            'SELECT id, name FROM colors').fetchall()
+        colornames = {el[0]: el[1] for el in db_colors}
+        data = self.cur.execute(
+            'SELECT name, color_id, filename_id FROM things').fetchall()
+        for name, color_id, filename_id in data:
+            color_name = colornames[color_id]
+            filename = get_filename_by_id(filename_id)
+            result.append(
+                {'name': name, 'color': color_name, 'filename': filename})
+        return result
+
+    def save_csv(self):
+        filename = self.get_filename('csv')
+        if not filename:
+            return
         file = open(filename, mode='wt', encoding='utf-8', newline='')
         writer = csv.DictWriter(file, fieldnames=(
             'название', 'цвет', 'изображение'), delimiter=';', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
         writer.writeheader()
         try:
-            db_colors = self.cur.execute(
-                'SELECT id, name FROM colors').fetchall()
-            colornames = {el[0]: el[1] for el in db_colors}
-            data = self.cur.execute(
-                'SELECT name, color_id, filename_id FROM things').fetchall()
-            for name, color_id, filename_id in data:
-                color_name = colornames[color_id]
-                filename = get_filename_by_id(filename_id)
+            for item in self.fetch_items():
                 writer.writerow(
-                    {'название': name, 'цвет': color_name, 'изображение': filename})
-            self.update_statusbar('Файл сгенерирован')
+                    {'название': item['name'], 'цвет': item['color'], 'изображение': item['filename']})
+            self.update_statusbar(FILE_GENERATED)
         except LOADING_ERROR as error:
             handle_loading_error(self, error)
-            self.update_statusbar('Ошибка')
+            self.update_statusbar(LOADING_ERROR_MESSAGE)
         except Exception as error:
             handle_unknown_error(self, error)
-            self.update_statusbar('Ошибка')
+            self.update_statusbar(UNKNOWN_ERROR_MESSAGE)
         finally:
             file.close()
 
     def save_docx(self):
-        pass
+        filename = self.get_filename('docx')
+        document = Document()
+        document.add_heading('Потерянные вещи', 0)
+        try:
+            items = self.fetch_items()
+            for item in items:
+                document.add_heading(item['name'].capitalize(), 1)
+                document.add_picture(item['filename'], width=Inches(3))
+                document.add_paragraph(item['color'])
+            if len(items) == 0:
+                document.add_paragraph('Нет потерянных предметов')
+            self.update_statusbar(FILE_GENERATED)
+            document.save(filename)
+        except LOADING_ERROR as error:
+            handle_loading_error(self, error)
+            self.update_statusbar(LOADING_ERROR_MESSAGE)
+        except Exception as error:
+            handle_unknown_error(self, error)
+            self.update_statusbar(UNKNOWN_ERROR_MESSAGE)
 
     def closeEvent(self, event) -> None:
         self.update_statusbar('Ожидание выбора')
