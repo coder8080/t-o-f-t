@@ -25,7 +25,7 @@
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <widget class="QLabel" name="label_3">
+      <widget class="QLabel" name="heading_label">
        <property name="font">
         <font>
          <pointsize>20</pointsize>
@@ -55,7 +55,7 @@
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
-        <widget class="QLabel" name="label">
+        <widget class="QLabel" name="lost_label">
          <property name="font">
           <font>
            <pointsize>18</pointsize>
@@ -80,7 +80,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton">
+        <widget class="QPushButton" name="find_button">
          <property name="text">
           <string>Найти потерянную вещь</string>
          </property>
@@ -91,7 +91,7 @@
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
-        <widget class="QLabel" name="label_2">
+        <widget class="QLabel" name="found_label">
          <property name="font">
           <font>
            <pointsize>18</pointsize>
@@ -116,7 +116,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_2">
+        <widget class="QPushButton" name="add_button">
          <property name="text">
           <string>Добавить вещь в базу данных</string>
          </property>
@@ -127,7 +127,7 @@
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_3">
        <item>
-        <widget class="QLabel" name="label_4">
+        <widget class="QLabel" name="file_label">
          <property name="font">
           <font>
            <pointsize>18</pointsize>
@@ -152,7 +152,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_3">
+        <widget class="QPushButton" name="file_button">
          <property name="text">
           <string>Сгенерировать файл</string>
          </property>
