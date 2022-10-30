@@ -3,3 +3,4 @@ venv
 venv/*
 vent/**
 database.sqlite3
+images

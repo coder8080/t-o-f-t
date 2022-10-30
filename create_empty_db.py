@@ -15,7 +15,7 @@ cur.execute(
     'CREATE TABLE colors (id INTEGER PRIMARY KEY AUTOINCREMENT, name text);').fetchall()
 print('Создаю таблицу потерянных вещей')
 cur.execute('CREATE TABLE things (id INTEGER PRIMARY KEY AUTOINCREMENT, name text,'
-            ' color_id integer, image_filename text)').fetchall()
+            ' color_id integer, filename_id text)').fetchall()
 print('Добавляю основные цвета')
 cur.execute('INSERT INTO colors (name) VALUES ("красный"),'
             ' ("синий"), ("зелёный"), ("белый"), ("чёрный")').fetchall()

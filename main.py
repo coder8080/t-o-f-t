@@ -1,9 +1,20 @@
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox
 from PyQt5 import uic
 from sys import argv, exit
+from PIL import Image
+import os
 import sqlite3
+import uuid0
 
 DATABASE_FILENAME = './database.sqlite3'
+
+
+def save_image(filename, id):
+    if not os.path.exists('./images'):
+        os.mkdir('./images')
+    im = Image.open(filename)
+    copy_filename = f'./images/{id}.png'
+    im.save(copy_filename)
 
 
 class SearchWindow(QMainWindow):
@@ -36,10 +47,12 @@ class AddWindow(QMainWindow):
         self.cancel_button.clicked.connect(self.close)
         self.add_color_button.clicked.connect(self.add_color)
         self.image_button.clicked.connect(self.open_image)
+        self.submit_button.clicked.connect(self.submit)
 
     def reset(self):
         self.filename = 'Файл не выбран'
         self.update_filename()
+        self.filename = None
 
     def closeEvent(self, e):
         self.reset()
@@ -50,18 +63,18 @@ class AddWindow(QMainWindow):
             self, "Добавление цвета", "Название цвета")[0].lower()
         if not colorname:
             return
-        isExisting = bool(self.cur.execute(
+        exists = bool(self.cur.execute(
             f'SELECT * FROM colors WHERE name = "{colorname}"').fetchall())
 
-        if isExisting:
+        if exists:
             QMessageBox().warning(self, 'Добавление цвета', 'Такой цвет уже существует',
                                   QMessageBox.StandardButton.Ok)
         else:
             self.cur.execute(f'INSERT INTO colors (name) VALUES'
                              f' ("{colorname}")')
             self.con.commit()
-            QMessageBox().information(self, 'Добавление цвета', 'Цвет успешно добавлен',
-                                      QMessageBox.StandardButton.Ok)
+            QMessageBox.information(self, 'Добавление цвета', 'Цвет успешно добавлен',
+                                    QMessageBox.StandardButton.Ok)
             self.update_colors()
             self.color_box.setCurrentIndex(self.colors.index(colorname))
 
@@ -79,11 +92,51 @@ class AddWindow(QMainWindow):
             self, 'Выберите файл с изображением', '',
             'Image Files(*.jpg, *.jpeg, *.png, *.bpm, *.webp)')[0]
         if not filename:
-            QMessageBox().warning(self, 'Ошибка', 'Файл не был выбран. Скорее'
-                                  ' всего, вы нажали "Cancel" вместо "Open"')
+            QMessageBox.warning(self, 'Ошибка', 'Файл не был выбран. Скорее'
+                                ' всего, вы нажали "Cancel" вместо "Open"')
             return
         self.filename = filename
         self.update_filename()
+
+    def submit(self):
+        name = self.name_edit.text()
+        filename = self.filename
+        color = self.color_box.currentText()
+        if not name:
+            QMessageBox.critical(
+                self, 'Ошибка', 'Укажите название')
+            return
+        if not filename:
+            QMessageBox.critical(
+                self, 'Ошибка', 'Укажте имя файла с изображением')
+            return
+        if not color:
+            QMessageBox.critical(self, 'Ошибка', 'Укажите цвет')
+            return
+        try:
+            exists = self.cur.execute(
+                f'SELECT id FROM things WHERE name = "{name}";').fetchall()
+            if exists:
+                QMessageBox.warning(
+                    self, 'Не удалось добавить', 'Запись с таким названием уже существует',)
+                return
+            id = uuid0.generate()
+            color_id = self.cur.execute(
+                f'SELECT Id FROM colors WHERE name = "{color}"').fetchall()[0][0]
+            query = f'INSERT INTO things(name, color_id, filename_id) VALUES ("{name}", {color_id}, "{id}")'
+            self.cur.execute(query)
+            self.con.commit()
+            save_image(filename, id)
+            QMessageBox.information(self, 'Уведомление', 'Запись добавлена')
+            self.close()
+        except (IndexError, sqlite3.OperationalError) as error:
+            print(error)
+            QMessageBox.critical(self, 'Произошла ошибка при обращении к базе данных.'
+                                 ' Проверьте целостность файла и перезапустите приложение')
+        except Exception as error:
+            print(error)
+            QMessageBox.critical(self, 'Произошла неизвестная ошибка. Попробуйте'
+                                 ' перезапустить приложение')
 
 
 class MainWindow(QMainWindow):

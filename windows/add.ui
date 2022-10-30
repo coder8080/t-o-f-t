@@ -57,7 +57,7 @@
       <widget class="QLineEdit" name="name_edit"/>
      </item>
      <item row="4" column="0" colspan="3">
-      <widget class="QPushButton" name="pushButton">
+      <widget class="QPushButton" name="submit_button">
        <property name="text">
         <string>Добавить</string>
        </property>
