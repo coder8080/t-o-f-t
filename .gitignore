@@ -7,3 +7,8 @@ images
 TOFT.log.csv
 doc.docx
 output*
+build
+dist
+compiled_windows
+main-to-build.py
+*.spec
