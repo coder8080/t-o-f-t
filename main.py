@@ -398,7 +398,7 @@ class SearchWindow(QMainWindow):
         if name or color:
             query += ' WHERE'
             if name:
-                query += f' levenshtein(name, "{name}") < 6'
+                query += f' levenshtein(name, "{name}") < 4'
             if name and color:
                 query += ' AND'
             if color:
