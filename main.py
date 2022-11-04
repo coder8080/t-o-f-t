@@ -104,7 +104,7 @@ def save_image(filename, id):
     im2.save(copy_filename)
 
 
-def print_document(self, filename, name, thing, color, image_filename):
+def print_document(filename, name, thing, color, image_filename):
     """ Создать документ о выписке потерянной вещи """
     date = str(datetime.now().date())
     document = Document()
@@ -361,10 +361,14 @@ class SearchWindow(QMainWindow):
         self.colors = []
         self.db_colors_ids = dict()
 
+    def reset_table(self):
+        self.table.setRowCount(0)
+
     def closeEvent(self, event):
         self.reset_name()
         self.reset_color_value()
         self.reset_statusbar()
+        self.reset_table()
 
     def onclick_fabric(self, id):
         def result():
@@ -401,7 +405,7 @@ class SearchWindow(QMainWindow):
                 color_id = self.db_colors_ids[color]
                 query += f' color_id = {color_id}'
         query += ';'
-        result = self.cur.execute(query).fetchall
+        result = self.cur.execute(query).fetchall()
         # Отображение данных в таблице
         self.table.setRowCount(len(result))
         for i, row in enumerate(result):
@@ -441,6 +445,8 @@ class AddWindow(QMainWindow):
         self.filename = 'Файл не выбран'
         self.update_filename()
         self.filename = None
+        self.name_edit.setText('')
+        self.color_box.setCurrentIndex(0)
 
     def closeEvent(self, e):
         self.reset()
@@ -480,7 +486,7 @@ class AddWindow(QMainWindow):
         """ Выбрать путь до файла с изображением """
         filename = QFileDialog.getOpenFileName(
             self, 'Выберите файл с изображением', '',
-            'Image Files(*.jpg, *.jpeg, *.png, *.bpm, *.webp)')[0]
+            'Image Files(*.jpg , *.jpeg , *.png , *.bpm , *.webp)')[0]
         if not filename:
             QMessageBox.warning(self, 'Ошибка', 'Файл не был выбран. Скорее'
                                 ' всего, вы нажали "Cancel" вместо "Open"')
