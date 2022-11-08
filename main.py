@@ -10,6 +10,7 @@ from datetime import datetime
 import csv
 from docx import Document
 from docx.shared import Inches
+from openpyxl import Workbook
 
 # Глобальные константы
 DATABASE_FILENAME = './database.sqlite3'
@@ -162,6 +163,7 @@ class FilesWindow(QMainWindow):
         self.update_statusbar('Ожидание выбора')
         self.csv_button.clicked.connect(self.save_csv)
         self.docx_button.clicked.connect(self.save_docx)
+        self.xlsx_button.clicked.connect(self.save_xlsx)
 
     def get_filename(self, resolution):
         """ Получить имя файла в корректный форме """
@@ -219,6 +221,8 @@ class FilesWindow(QMainWindow):
     def save_docx(self):
         """ Экспорт в формат docx """
         filename = self.get_filename('docx')
+        if not filename:
+            return
         document = Document()
         document.add_heading('Потерянные вещи', 0)
         try:
@@ -229,8 +233,30 @@ class FilesWindow(QMainWindow):
                 document.add_paragraph(item['color'])
             if len(items) == 0:
                 document.add_paragraph('Нет потерянных предметов')
-            self.update_statusbar(FILE_GENERATED)
             document.save(filename)
+            self.update_statusbar(FILE_GENERATED)
+        except LOADING_ERROR as error:
+            handle_loading_error(self, error)
+            self.update_statusbar(LOADING_ERROR_MESSAGE)
+        except Exception as error:
+            handle_unknown_error(self, error)
+            self.update_statusbar(UNKNOWN_ERROR_MESSAGE)
+
+    def save_xlsx(self):
+        """ Экспорт в формат xlsx """
+        filename = self.get_filename('xlsx')
+        if not filename:
+            return
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['Название', 'Цвет', 'Файл с изображением'])
+        try:
+            items = self.fetch_items()
+            for item in items:
+                arr = item.values()
+                ws.append(list(arr))
+            wb.save(filename)
+            self.update_statusbar(FILE_GENERATED)
         except LOADING_ERROR as error:
             handle_loading_error(self, error)
             self.update_statusbar(LOADING_ERROR_MESSAGE)

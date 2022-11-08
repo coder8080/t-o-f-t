@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>386</width>
-    <height>205</height>
+    <height>256</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -38,7 +38,7 @@
       <x>10</x>
       <y>80</y>
       <width>367</width>
-      <height>91</height>
+      <height>140</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
@@ -53,6 +53,13 @@
       <widget class="QPushButton" name="csv_button">
        <property name="text">
         <string>Вывести все потерянные вещи в CSV</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="xlsx_button">
+       <property name="text">
+        <string>Вывести потерянные вещи в XLSX</string>
        </property>
       </widget>
      </item>
