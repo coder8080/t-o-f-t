@@ -12,3 +12,4 @@ dist
 compiled_windows
 main-to-build.py
 *.spec
+__pycache__
