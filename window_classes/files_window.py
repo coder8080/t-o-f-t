@@ -1,7 +1,8 @@
-from PyQt5.QtWidgets import QMainWindow, QFileDialog
+from PyQt5.QtWidgets import QMainWindow
 from .helpers.get_filename_by_id import get_filename_by_id
 from .helpers.error_handlers import *
 from .helpers.constants import *
+from .helpers.get_filename import get_filename
 from docx import Document
 from docx.shared import Inches
 from openpyxl import Workbook
@@ -28,19 +29,6 @@ class FilesWindow(QMainWindow):
         self.docx_button.clicked.connect(self.save_docx)
         self.xlsx_button.clicked.connect(self.save_xlsx)
 
-    def get_filename(self, resolution):
-        """ Получить имя файла в корректный форме """
-        filename = QFileDialog.getSaveFileName(
-            self, 'Получившийся файл', filter=f'{resolution}(*.{resolution})')[0]
-        if not filename:
-            return
-        splitted = filename.split('.')
-        if splitted[-1] != resolution:
-            if filename[-1] != '.':
-                filename += '.'
-            filename += resolution
-        return filename
-
     def fetch_items(self):
         """ Получить записи из базы данных """
         result = []
@@ -60,7 +48,7 @@ class FilesWindow(QMainWindow):
 
     def save_csv(self):
         """ Экспортировать в формат csv """
-        filename = self.get_filename('csv')
+        filename = get_filename(self, 'csv', 'save')
         if not filename:
             return
         file = open(filename, mode='wt', encoding='utf-8', newline='')
@@ -83,7 +71,7 @@ class FilesWindow(QMainWindow):
 
     def save_docx(self):
         """ Экспорт в формат docx """
-        filename = self.get_filename('docx')
+        filename = get_filename(self, 'docx', 'save')
         if not filename:
             return
         document = Document()
@@ -107,7 +95,7 @@ class FilesWindow(QMainWindow):
 
     def save_xlsx(self):
         """ Экспорт в формат xlsx """
-        filename = self.get_filename('xlsx')
+        filename = get_filename(self, 'xlsx', 'save')
         if not filename:
             return
         wb = Workbook()

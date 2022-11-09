@@ -6,6 +6,8 @@ from .files_window import FilesWindow
 from .helpers.database import create_database, distance
 from .helpers.constants import *
 from .helpers.logger_instance import logger
+from .helpers.import_from_csv import import_from_csv
+from .helpers.get_filename import get_filename
 from os import path
 import sqlite3
 
@@ -25,6 +27,7 @@ class MainWindow(QMainWindow):
         self.search_button.clicked.connect(self.open_search_window)
         self.add_button.clicked.connect(self.open_add_window)
         self.file_button.clicked.connect(self.open_files_window)
+        self.import_button.clicked.connect(self.import_csv)
 
     def setupDb(self):
         """ Установить соединение с базой данных """
@@ -43,6 +46,12 @@ class MainWindow(QMainWindow):
 
     def open_files_window(self):
         self.files_window.show()
+
+    def import_csv(self):
+        filename = get_filename(self, 'csv', 'open')
+        if not filename:
+            return
+        import_from_csv(self.con, self.cur, filename)
 
     def closeEvent(self, event):
         logger.close()
