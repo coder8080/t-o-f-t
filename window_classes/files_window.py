@@ -23,7 +23,7 @@ class FilesWindow(QMainWindow):
         self.statusbar.showMessage(message)
 
     def initUi(self):
-        uic.loadUi('./windows/files.ui', self)
+        self.setupUi(self)
         self.update_statusbar('Ожидание выбора')
         self.csv_button.clicked.connect(self.save_csv)
         self.docx_button.clicked.connect(self.save_docx)
@@ -43,7 +43,7 @@ class FilesWindow(QMainWindow):
             color_name = colornames[color_id]
             filename = get_filename_by_id(filename_id)
             result.append(
-                {'name': name, 'color': color_name, 'filename': filename})
+                {'name': name, 'color': color_name, 'filename': filename, 'filename_id': filename_id})
         return result
 
     def save_csv(self):
@@ -53,12 +53,12 @@ class FilesWindow(QMainWindow):
             return
         file = open(filename, mode='wt', encoding='utf-8', newline='')
         writer = csv.DictWriter(file, fieldnames=(
-            'название', 'цвет', 'изображение'), delimiter=';', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+            'название', 'цвет', 'изображение', 'id изображения'), delimiter=';', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
         writer.writeheader()
         try:
             for item in self.fetch_items():
                 writer.writerow(
-                    {'название': item['name'], 'цвет': item['color'], 'изображение': item['filename']})
+                    {'название': item['name'], 'цвет': item['color'], 'изображение': item['filename'], 'id изображения': item['filename_id']})
             self.update_statusbar(FILE_GENERATED)
         except LOADING_ERROR as error:
             handle_loading_error(self, error)

@@ -1,13 +1,14 @@
 from .get_filename_by_id import get_filename_by_id
 from PIL import Image
+from .constants import *
 import os
 
 
 def save_image(filename, id):
     """ Скопировать и сконвертировать изображение """
     # Создать папку если не существует
-    if not os.path.exists('../images'):
-        os.mkdir('./images')
+    if not os.path.exists(ROOT + 'images'):
+        os.mkdir(ROOT + 'images')
     im = Image.open(filename)
     im2 = None
     # Задать новый размер изображению
