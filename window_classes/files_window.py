@@ -23,7 +23,7 @@ class FilesWindow(QMainWindow):
         self.statusbar.showMessage(message)
 
     def initUi(self):
-        self.setupUi(self)
+        uic.loadUi('./windows/files.ui', self)
         self.update_statusbar('Ожидание выбора')
         self.csv_button.clicked.connect(self.save_csv)
         self.docx_button.clicked.connect(self.save_docx)
